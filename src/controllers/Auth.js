@@ -1,4 +1,5 @@
-const { User } = require("../models")
+const { User } = require("../models");
+const bcrypt = require("bcryptjs");
 
 const authController = {
   showLogin(req, res) {
@@ -10,12 +11,15 @@ const authController = {
 
 
 async register(req, res) {
-  const { name, email, password, username } = req.body;
+  
   try {
+    const { name, email, password, username } = req.body;
+    const hash = bcrypt.hashSync(password, 10);
+
     const user = await User.create({
       name,
       email,
-      password,
+      password: hash,
       username,
       avatar: "link",
       create_at: new Date().toISOString(),
@@ -25,6 +29,43 @@ async register(req, res) {
   } catch (err) {
     console.log(err);
     return res.redirect("/registro");
+  }
+},
+
+async login(req, res) {
+  
+  try {
+    const { email, password } = req.body;
+    const user = await User.findOne({
+      where: {
+        email,
+      },
+    });
+
+    if(!user) {
+    return res.render("auth/login", {error: "Usuário não existe!"});
+  } 
+    //if (user.password != password){
+      //return res.render("auth/login", { error: "Senha está errada!"});
+   // }
+
+     if (!bcrypt.compareSync(password, user.password)) {
+        return res.render("auth/login", { error: "Senha está errada!" });
+    }
+    Object.assign(req.session, {
+      user: {
+        id: user.id,
+        name: user.name,
+    },
+  });
+    
+    return res.redirect("/home");
+  
+  }catch (error) {
+    console.log(error);
+    return res.render("auth/login", {
+      error: "Sistema indisponivel tente novamente!",
+    });
   }
 },
 };
